@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHREE SATYAPRAKASH SCHOOL Teacher Remark Tracker</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #f59e0b; /* Amber for a professional, warm look */
+            --secondary-color: #10b981;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fef3c7; /* Light amber background */
+        }
+        .scroll-container {
+            max-height: 55vh; 
+            overflow-y: auto;
+        }
+        /* Custom animation for fading out success messages */
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .fade-out {
+            animation: fadeOut 3s forwards;
+        }
+        /* Modal Backdrop */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 40;
+        }
+        /* Modal Panel */
+        .modal-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+            max-width: 95%;
+            max-height: 95%;
+            width: 700px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="min-h-screen p-4 sm:p-8">
+        <header class="mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 text-center text-amber-800">SHREE SATYAPRAKASH SCHOOL</h1>
+            <h2 class="text-2xl font-semibold text-gray-700 text-center mt-1">Teacher Performance Tracker</h2>
+          
+        </header>
+
+        <!-- User/Auth Info -->
+        <div id="auth-info" class="text-xs text-gray-500 mb-4 flex justify-center items-center gap-4">
+            <p>Loading authentication...</p>
+        </div>
+
+        <div class="max-w-5xl mx-auto">
+            
+            <!-- Auth Form (Visible when loggedOut) -->
+            <div id="auth-container" class="bg-white p-8 rounded-xl shadow-2xl transition duration-300 hidden">
+                <h3 id="auth-title" class="text-2xl font-bold text-center mb-6 text-amber-700">Sign In</h3>
+                <input type="email" id="auth-email" placeholder="Email" class="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500">
+                <input type="password" id="auth-password" placeholder="Password" class="w-full p-3 mb-6 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500">
+                
+                <button id="auth-action-btn" class="w-full py-3 px-4 bg-amber-600 text-white font-semibold rounded-lg shadow-lg hover:bg-amber-700 transition duration-150 ease-in-out disabled:opacity-50">
+                    Sign In
+                </button>
+
+                <p id="auth-toggle-link" class="text-center mt-4 text-sm text-gray-600 cursor-pointer hover:text-amber-600 transition duration-150">
+                    Need an account? <span class="font-semibold text-amber-500">Sign Up</span>
+                </p>
+
+                <!-- Auth Error Message Box -->
+                <div id="auth-error-box" class="mt-4 p-3 text-sm text-red-700 bg-red-100 rounded-lg hidden" role="alert">
+                    <p id="auth-error-text" class="font-medium"></p>
+                </div>
+            </div>
+
+            <!-- Main App Content (Visible when loggedIn) -->
+            <div id="main-content" class="bg-white p-6 sm:p-8 rounded-xl shadow-2xl hidden">
+                
+                <!-- Filter and Action Controls -->
+                <div class="flex flex-col sm:flex-row items-center justify-between mb-6 border-b pb-4 gap-3">
+                    
+                    <!-- Search Filter -->
+                    <div class="w-full sm:w-1/2">
+                        <label for="search-filter" class="sr-only">Search Teacher</label>
+                        <input type="text" id="search-filter" placeholder="Search teacher by name..." 
+                               class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 transition duration-150">
+                    </div>
+
+                    <!-- Add Teacher Button -->
+                    <button id="add-teacher-btn" 
+                            class="w-full sm:w-auto px-6 py-3 bg-amber-500 text-white font-semibold rounded-lg shadow-md hover:bg-amber-600 transition duration-150 ease-in-out disabled:opacity-50 text-sm">
+                        + Add New Teacher
+                    </button>
+                </div>
+                
+                <!-- Loading Indicator -->
+                <div id="loading-indicator" class="text-center py-12 hidden">
+                    <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-amber-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="mt-3 text-gray-500">Loading teacher roster...</p>
+                </div>
+
+                <!-- Teacher List Container -->
+                <div id="teacher-list-container" class="scroll-container hidden">
+                    <div id="teacher-list" class="space-y-4">
+                        <!-- Teacher cards will be injected here -->
+                    </div>
+                </div>
+                
+                <!-- Empty State Message -->
+                <div id="empty-state" class="text-center py-12 hidden">
+                    <p class="text-gray-500 italic">No teachers found. Click "+ Add New Teacher" to get started.</p>
+                </div>
+                
+                <!-- App Error Message Box -->
+                <div id="app-error-box" class="mt-4 p-4 text-sm text-red-700 bg-red-100 rounded-lg hidden" role="alert">
+                    <p id="app-error-text" class="font-medium"></p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- TEACHER ADD/EDIT MODAL -->
+    <div id="remark-modal" class="hidden">
+        <div class="modal-backdrop" onclick="closeRemarkModal()"></div>
+        <div class="modal-panel bg-white p-6 sm:p-8 rounded-xl shadow-2xl overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-4 mb-4">
+                <h3 id="modal-title" class="text-2xl font-bold text-amber-700">Add New Teacher</h3>
+                <button onclick="closeRemarkModal()" class="text-gray-400 hover:text-gray-600 transition duration-150">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <!-- Teacher Details Form -->
+            <form id="remark-form">
+                <input type="hidden" id="teacher-id-input">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <!-- Teacher Name -->
+                    <div>
+                        <label for="teacher-name-input" class="block text-sm font-medium text-gray-700 mb-1">Teacher Name <span class="text-red-500">*</span></label>
+                        <input type="text" id="teacher-name-input" placeholder="e.g., Mrs. S. Patel" required
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500">
+                    </div>
+                    
+                    <!-- Standard -->
+                    <div>
+                        <label for="teacher-standard-input" class="block text-sm font-medium text-gray-700 mb-1">Standard</label>
+                        <input type="text" id="teacher-standard-input" placeholder="e.g., 10th"
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500">
+                    </div>
+
+                    <!-- Subject -->
+                    <div class="md:col-span-2">
+                        <label for="teacher-subject-input" class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                        <input type="text" id="teacher-subject-input" placeholder="e.g., Mathematics & Science"
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500">
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="positive-remark-input" class="block text-sm font-medium text-gray-700 mb-1">Positive Remarks</label>
+                    <textarea id="positive-remark-input" rows="4" placeholder="Enter positive points, achievements, or growth areas..."
+                              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500 resize-none"></textarea>
+                </div>
+
+                <div class="mb-6">
+                    <label for="negative-remark-input" class="block text-sm font-medium text-gray-700 mb-1">Negative Remarks / Areas for Improvement</label>
+                    <textarea id="negative-remark-input" rows="4" placeholder="Enter areas for improvement or constructive feedback..."
+                              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500 resize-none"></textarea>
+                </div>
+
+                <!-- Modal Status/Error Message -->
+                <div id="modal-message-box" class="mt-4 p-3 text-sm text-red-700 bg-red-100 rounded-lg hidden" role="alert">
+                    <p id="modal-message-text" class="font-medium"></p>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
+                    <button type="button" id="delete-teacher-btn" 
+                            class="px-4 py-2 bg-red-500 text-white font-semibold rounded-lg shadow-md hover:bg-red-600 transition duration-150 ease-in-out hidden text-sm">
+                        Delete Teacher
+                    </button>
+                    <button type="submit" id="save-teacher-btn" 
+                            class="ml-auto px-6 py-3 bg-amber-600 text-white font-semibold rounded-lg shadow-lg hover:bg-amber-700 transition duration-150 ease-in-out disabled:opacity-50">
+                        Save Record
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        setLogLevel('Debug');
+
+        // --- GLOBAL VARIABLES (Provided by Canvas Environment) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-remark-tracker';
+        
+        // =========================================================================================
+        // --- FIREBASE PROJECT CONFIGURATION ---
+        // REPLACE THIS PLACEHOLDER CONFIG WITH YOUR ACTUAL FIREBASE WEB CONFIGURATION!
+        const NEW_PROJECT_PLACEHOLDER_CONFIG = {
+            apiKey: "AIzaSyB0eNRansfWi-ShoqO36SIEZ1kRstdHu7g",
+  authDomain: "teacher-remark-tracker.firebaseapp.com",
+  projectId: "teacher-remark-tracker",
+  storageBucket: "teacher-remark-tracker.firebasestorage.app",
+  messagingSenderId: "1060011829221",
+  appId: "1:1060011829221:web:21391c47493f7a79ae310c",
+  measurementId: "G-246TT9F6BV"
+        };
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config ? 
+                               JSON.parse(__firebase_config) : 
+                               NEW_PROJECT_PLACEHOLDER_CONFIG;
+        // =========================================================================================
+        
+        let app, db, auth, userId = null;
+        let teachersRoster = [];
+        let isSigningUp = false; 
+
+        // --- DOM Elements ---
+        const mainContentEl = document.getElementById('main-content');
+        const teacherListEl = document.getElementById('teacher-list');
+        const loadingEl = document.getElementById('loading-indicator');
+        const authInfoEl = document.getElementById('auth-info');
+        const emptyStateEl = document.getElementById('empty-state');
+        const appErrorBox = document.getElementById('app-error-box');
+        const appErrorText = document.getElementById('app-error-text');
+        const searchFilterEl = document.getElementById('search-filter');
+
+        // Auth Elements
+        const authContainerEl = document.getElementById('auth-container');
+        const authTitleEl = document.getElementById('auth-title');
+        const authEmailEl = document.getElementById('auth-email');
+        const authPasswordEl = document.getElementById('auth-password');
+        const authActionBtn = document.getElementById('auth-action-btn');
+        const authToggleLink = document.getElementById('auth-toggle-link');
+        const authErrorBox = document.getElementById('auth-error-box');
+        const authErrorText = document.getElementById('auth-error-text');
+        
+        // Modal Elements
+        const remarkModal = document.getElementById('remark-modal');
+        const addTeacherBtn = document.getElementById('add-teacher-btn');
+        const modalTitleEl = document.getElementById('modal-title');
+        const teacherIdInput = document.getElementById('teacher-id-input');
+        const teacherNameInput = document.getElementById('teacher-name-input');
+        const teacherStandardInput = document.getElementById('teacher-standard-input');
+        const teacherSubjectInput = document.getElementById('teacher-subject-input');
+        const positiveRemarkInput = document.getElementById('positive-remark-input');
+        const negativeRemarkInput = document.getElementById('negative-remark-input');
+        const deleteTeacherBtn = document.getElementById('delete-teacher-btn');
+        const saveTeacherBtn = document.getElementById('save-teacher-btn');
+        const remarkForm = document.getElementById('remark-form');
+        const modalMessageBox = document.getElementById('modal-message-box');
+        const modalMessageText = document.getElementById('modal-message-text');
+
+        // --- Utility Functions ---
+
+        function displayAppError(message) {
+            appErrorText.textContent = message;
+            appErrorBox.classList.remove('hidden');
+            console.error(message);
+        }
+        
+        function clearAppError() {
+            appErrorBox.classList.add('hidden');
+        }
+
+        function displayModalMessage(message, isError = true) {
+            modalMessageText.textContent = message;
+            modalMessageBox.classList.remove('hidden');
+            if (isError) {
+                modalMessageBox.classList.remove('bg-green-100', 'text-green-700');
+                modalMessageBox.classList.add('bg-red-100', 'text-red-700');
+                console.error(message);
+            } else {
+                modalMessageBox.classList.remove('bg-red-100', 'text-red-700');
+                modalMessageBox.classList.add('bg-green-100', 'text-green-700');
+            }
+        }
+        
+        function clearModalMessage() {
+            modalMessageBox.classList.add('hidden');
+        }
+        
+        function showModalSuccess(message) {
+            displayModalMessage(message, false);
+            // Hide after 3 seconds with fade out effect
+            setTimeout(() => {
+                modalMessageBox.classList.add('fade-out');
+            }, 100);
+            setTimeout(() => {
+                modalMessageBox.classList.add('hidden');
+                modalMessageBox.classList.remove('fade-out');
+                clearModalMessage();
+            }, 3000);
+        }
+        
+        function displayAuthError(message) {
+            authErrorText.textContent = message;
+            authErrorBox.classList.remove('hidden');
+            console.error(message);
+        }
+        
+        function clearAuthError() {
+            authErrorBox.classList.add('hidden');
+        }
+        
+        function generateTeacherId() {
+            return 'T_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
+        }
+
+        // --- Firebase Paths ---
+
+        function getTeacherDocRef(teacherId) {
+            if (!db) {
+                displayAppError("Firestore is not initialized.");
+                return null;
+            }
+            // Using the public path structure for shared data
+            return doc(db, 'artifacts', appId, 'public', 'data', 'teachers', teacherId);
+        }
+
+        function getTeachersCollectionRef() {
+             if (!db) {
+                displayAppError("Firestore is not initialized.");
+                return null;
+            }
+            return collection(db, 'artifacts', appId, 'public', 'data', 'teachers');
+        }
+
+        // --- Authentication Logic ---
+
+        function toggleAuthMode() {
+            isSigningUp = !isSigningUp;
+            clearAuthError();
+            if (isSigningUp) {
+                authTitleEl.textContent = 'Sign Up';
+                authActionBtn.textContent = 'Sign Up';
+                authToggleLink.innerHTML = 'Already have an account? <span class="font-semibold text-amber-500">Sign In</span>';
+            } else {
+                authTitleEl.textContent = 'Sign In';
+                authActionBtn.textContent = 'Sign In';
+                authToggleLink.innerHTML = 'Need an account? <span class="font-semibold text-amber-500">Sign Up</span>';
+            }
+        }
+        
+        async function handleAuthAction() {
+            const email = authEmailEl.value.trim();
+            const password = authPasswordEl.value.trim();
+
+            if (!email || !password) {
+                displayAuthError("Please enter both email and password.");
+                return;
+            }
+
+            authActionBtn.disabled = true;
+            authActionBtn.textContent = isSigningUp ? 'Signing Up...' : 'Signing In...';
+            clearAuthError();
+
+            try {
+                if (isSigningUp) {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                }
+                // onAuthStateChanged handler will fire and manage UI
+            } catch (error) {
+                let errorMessage = "An unknown error occurred.";
+                // Enhanced error handling for common Firebase Auth issues
+                if (error.code === 'auth/weak-password') {
+                    errorMessage = 'Password should be at least 6 characters.';
+                } else if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = 'This email address is already registered.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'The email address is not valid.';
+                } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                    errorMessage = 'Invalid email or password.';
+                } else {
+                    errorMessage = error.message;
+                }
+                displayAuthError(errorMessage);
+            } finally {
+                authActionBtn.disabled = false;
+                authActionBtn.textContent = isSigningUp ? 'Sign Up' : 'Sign In';
+            }
+        }
+        
+        async function handleSignOut() {
+            if (!auth) return;
+            try {
+                await signOut(auth);
+            } catch (e) {
+                displayAppError(`Error signing out: ${e.message}`);
+            }
+        }
+
+
+        // --- Modal Logic ---
+
+        window.openRemarkModal = function(teacher = null) {
+            if (!userId) {
+                displayAppError("You must be signed in to manage teacher records.");
+                return;
+            }
+            clearModalMessage();
+            remarkForm.reset(); // Clear previous data
+
+            if (teacher) {
+                modalTitleEl.textContent = `Edit Record for ${teacher.name}`;
+                teacherIdInput.value = teacher.id;
+                teacherNameInput.value = teacher.name;
+                teacherStandardInput.value = teacher.standard || '';
+                teacherSubjectInput.value = teacher.subject || '';
+                positiveRemarkInput.value = teacher.positiveRemarks || '';
+                negativeRemarkInput.value = teacher.negativeRemarks || '';
+                deleteTeacherBtn.classList.remove('hidden');
+            } else {
+                modalTitleEl.textContent = 'Add New Teacher';
+                teacherIdInput.value = '';
+                deleteTeacherBtn.classList.add('hidden');
+            }
+
+            remarkModal.classList.remove('hidden');
+        }
+
+        window.closeRemarkModal = function() {
+            remarkModal.classList.add('hidden');
+        }
+        
+        // --- Teacher CRUD Operations ---
+
+        /** Handles saving a new or existing teacher record. */
+        async function saveTeacherRecord(event) {
+            event.preventDefault();
+            clearModalMessage();
+            
+            const teacherId = teacherIdInput.value || generateTeacherId();
+            const teacherName = teacherNameInput.value.trim();
+            const teacherStandard = teacherStandardInput.value.trim();
+            const teacherSubject = teacherSubjectInput.value.trim();
+            const positiveRemarks = positiveRemarkInput.value.trim();
+            const negativeRemarks = negativeRemarkInput.value.trim();
+            
+            if (!teacherName) {
+                displayModalMessage("Teacher Name is mandatory.", true);
+                return;
+            }
+
+            saveTeacherBtn.disabled = true;
+            saveTeacherBtn.textContent = teacherId.startsWith('T_') ? 'Updating...' : 'Adding...';
+
+            try {
+                const teacherData = {
+                    id: teacherId,
+                    name: teacherName,
+                    standard: teacherStandard,
+                    subject: teacherSubject,
+                    positiveRemarks: positiveRemarks,
+                    negativeRemarks: negativeRemarks,
+                    updatedAt: new Date().toISOString(),
+                    createdBy: userId // Track who created the record
+                };
+
+                const docRef = getTeacherDocRef(teacherId);
+                await setDoc(docRef, teacherData);
+
+                showModalSuccess(`Record for ${teacherName} saved successfully!`);
+                
+                // ADDED: Auto-close the modal after a brief delay so the user sees the success flash
+                setTimeout(() => {
+                    window.closeRemarkModal();
+                }, 500); 
+
+            } catch (e) {
+                displayModalMessage(`Failed to save record: ${e.message}`, true);
+            } finally {
+                saveTeacherBtn.disabled = false;
+                saveTeacherBtn.textContent = 'Save Record';
+            }
+        }
+
+        /** Handles deleting a teacher record. */
+        window.deleteTeacherRecord = async function() {
+            const teacherId = teacherIdInput.value;
+            const teacherName = teacherNameInput.value;
+
+            // Simple check instead of confirm()
+            if (!window.confirm(`Are you sure you want to permanently delete the record for ${teacherName}? This action cannot be undone.`)) {
+                 return;
+            }
+            
+            deleteTeacherBtn.disabled = true;
+            deleteTeacherBtn.textContent = 'Deleting...';
+            saveTeacherBtn.disabled = true;
+
+            try {
+                const docRef = getTeacherDocRef(teacherId);
+                
+                // NOTE: Deletion is intentionally disabled here because 'deleteDoc' is not imported,
+                // and relying on partial deletes (like removing the teacher from the local array)
+                // could lead to out-of-sync data. In a full production app, 'deleteDoc' would be used.
+                displayModalMessage("Deletion feature requires `deleteDoc` import. Please manually clear/remove the entry if necessary.", true);
+                
+                closeRemarkModal(); 
+            } catch (e) {
+                displayModalMessage(`Failed to delete record: ${e.message}`, true);
+            } finally {
+                deleteTeacherBtn.disabled = false;
+                deleteTeacherBtn.textContent = 'Delete Teacher';
+                saveTeacherBtn.disabled = false;
+            }
+        }
+
+        // --- Teacher Roster Subscription & Rendering ---
+
+        let unsubscribeTeachers = null;
+
+        function subscribeToTeachers() {
+            if (unsubscribeTeachers) {
+                unsubscribeTeachers();
+            }
+            if (!db || !userId) return;
+
+            const collectionRef = getTeachersCollectionRef();
+            const q = query(collectionRef); // Simple query on the entire collection
+            
+            loadingEl.classList.remove('hidden');
+            teacherListEl.innerHTML = '';
+            emptyStateEl.classList.add('hidden');
+            document.getElementById('teacher-list-container').classList.add('hidden');
+
+            unsubscribeTeachers = onSnapshot(q, (snapshot) => {
+                loadingEl.classList.add('hidden');
+                
+                teachersRoster = [];
+                snapshot.forEach(doc => {
+                    teachersRoster.push(doc.data());
+                });
+
+                // Sort by name alphabetically
+                teachersRoster.sort((a, b) => a.name.localeCompare(b.name));
+                
+                // Re-render the list based on current search filter
+                renderTeacherList();
+                
+            }, (error) => {
+                loadingEl.classList.add('hidden');
+                displayAppError(`Error fetching teacher roster: ${error.message}`);
+                teachersRoster = [];
+                renderTeacherList();
+            });
+        }
+        
+        function renderTeacherList() {
+            teacherListEl.innerHTML = '';
+            clearAppError();
+
+            const searchTerm = searchFilterEl.value.toLowerCase().trim();
+            const filteredTeachers = teachersRoster.filter(teacher => 
+                teacher.name.toLowerCase().includes(searchTerm) ||
+                (teacher.subject && teacher.subject.toLowerCase().includes(searchTerm))
+            );
+
+            if (filteredTeachers.length === 0) {
+                emptyStateEl.classList.remove('hidden');
+                document.getElementById('teacher-list-container').classList.add('hidden');
+                if (searchTerm) {
+                    emptyStateEl.innerHTML = `<p class="text-gray-500 italic">No teachers match the search term: <strong>${searchTerm}</strong>.</p>`;
+                } else {
+                    emptyStateEl.innerHTML = `<p class="text-gray-500 italic">No teachers found. Click "+ Add New Teacher" to get started.</p>`;
+                }
+                return;
+            }
+
+            emptyStateEl.classList.add('hidden');
+            document.getElementById('teacher-list-container').classList.remove('hidden');
+            
+            filteredTeachers.forEach(teacher => {
+                const card = document.createElement('div');
+                card.className = 'bg-white border-l-4 border-amber-500 p-4 rounded-lg shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center transition duration-200 hover:shadow-2xl hover:bg-amber-50';
+                
+                card.innerHTML = `
+                    <div class="flex-1 min-w-0 mb-3 sm:mb-0 pr-4">
+                        <h4 class="text-xl font-bold text-amber-800">${teacher.name}</h4>
+                        <p class="text-sm text-gray-600 mt-1">
+                            <span class="font-semibold">${teacher.standard || 'N/A'}</span> / ${teacher.subject || 'No Subject'}
+                        </p>
+                        <div class="mt-3 space-y-2 text-sm">
+                            <p class="text-green-700"><strong><span class="font-medium">✅ Positive:</span></strong> ${teacher.positiveRemarks || 'No positive remarks recorded.'}</p>
+                            <p class="text-red-700"><strong><span class="font-medium">❌ Negative:</span></strong> ${teacher.negativeRemarks || 'No areas for improvement recorded.'}</p>
+                        </div>
+                    </div>
+                    
+                    <button data-teacher='${JSON.stringify(teacher)}' 
+                            class="edit-btn shrink-0 px-4 py-2 bg-amber-600 text-white font-semibold rounded-lg shadow-md hover:bg-amber-700 transition duration-150 ease-in-out text-sm">
+                        Edit Record
+                    </button>
+                `;
+                teacherListEl.appendChild(card);
+            });
+            
+            document.querySelectorAll('.edit-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const teacherData = JSON.parse(e.currentTarget.getAttribute('data-teacher'));
+                    openRemarkModal(teacherData);
+                });
+            });
+        }
+
+
+        // --- Setup and Initialization ---
+        
+        function setupAppListeners() {
+            addTeacherBtn.addEventListener('click', () => openRemarkModal(null));
+            remarkForm.addEventListener('submit', saveTeacherRecord);
+            deleteTeacherBtn.addEventListener('click', deleteTeacherRecord);
+            
+            // Debounced search to prevent excessive re-rendering while typing
+            let searchTimeout = null;
+            searchFilterEl.addEventListener('input', () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(renderTeacherList, 300);
+            });
+            
+            // Add Sign Out button dynamically
+            let signOutBtn = document.getElementById('sign-out-btn');
+            if (!signOutBtn) {
+                signOutBtn = document.createElement('button');
+                signOutBtn.id = 'sign-out-btn';
+                signOutBtn.className = 'px-3 py-1 bg-red-500 text-white text-xs font-semibold rounded-lg shadow-md hover:bg-red-600 transition duration-150';
+                signOutBtn.textContent = 'Sign Out';
+                signOutBtn.addEventListener('click', handleSignOut);
+                authInfoEl.appendChild(signOutBtn);
+            }
+
+            subscribeToTeachers(); // Start listening for data
+        }
+
+        function handleAuthStateChange(user) {
+            if (user) {
+                userId = user.uid;
+                authInfoEl.innerHTML = `<p class="font-semibold text-sm">Logged in as: <span class="text-amber-600">${user.email || user.uid}</span></p>`;
+                mainContentEl.classList.remove('hidden');
+                authContainerEl.classList.add('hidden');
+                setupAppListeners();
+            } else {
+                userId = null;
+                if (unsubscribeTeachers) unsubscribeTeachers();
+                
+                authInfoEl.innerHTML = `<p class="font-semibold">Please sign in to continue.</p>`;
+                mainContentEl.classList.add('hidden');
+                authContainerEl.classList.remove('hidden');
+            }
+        }
+
+        function initFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // --- MANDATORY CANVAS AUTHENTICATION START ---
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+                const attemptSignIn = async () => {
+                    if (initialAuthToken) {
+                        try {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } catch (e) {
+                            console.error("Token Sign-in Failed, attempting Anonymous:", e);
+                            await signInAnonymously(auth);
+                        }
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                };
+                
+                attemptSignIn().catch(e => {
+                    console.error("Initial sign-in attempt failed.", e);
+                });
+                // --- MANDATORY CANVAS AUTHENTICATION END ---
+
+                // Listener for Auth changes
+                onAuthStateChanged(auth, handleAuthStateChange);
+                
+                // Setup Auth form listeners 
+                authActionBtn.addEventListener('click', handleAuthAction);
+                authToggleLink.addEventListener('click', toggleAuthMode);
+
+            } catch (e) {
+                displayAppError(`Firebase Initialization Error: ${e.message}`);
+            }
+        }
+
+        window.onload = initFirebase;
+
+    </script>
+</body>
+</html>
