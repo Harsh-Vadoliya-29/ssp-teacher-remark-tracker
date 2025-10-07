@@ -58,7 +58,7 @@
         <header class="mb-8">
             <h1 class="text-4xl font-bold text-gray-800 text-center text-amber-800">SHREE SATYAPRAKASH SCHOOL</h1>
             <h2 class="text-2xl font-semibold text-gray-700 text-center mt-1">Teacher Performance Tracker</h2>
-          
+            <p class="text-center text-sm text-gray-500 mt-1">Secured via Email/Password Authentication.</p>
         </header>
 
         <!-- User/Auth Info -->
@@ -211,9 +211,8 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         setLogLevel('Debug');
 
@@ -334,23 +333,24 @@
             return 'T_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
         }
 
-        // --- Firebase Paths ---
+        // --- Firebase Paths (UPDATED FOR PRIVATE STORAGE) ---
 
         function getTeacherDocRef(teacherId) {
-            if (!db) {
-                displayAppError("Firestore is not initialized.");
+            if (!db || !userId) {
+                displayAppError("Firestore is not initialized or user is not logged in.");
                 return null;
             }
-            // Using the public path structure for shared data
-            return doc(db, 'artifacts', appId, 'public', 'data', 'teachers', teacherId);
+            // *** NEW PRIVATE PATH: /artifacts/{appId}/users/{userId}/teachers/{teacherId} ***
+            return doc(db, 'artifacts', appId, 'users', userId, 'teachers', teacherId);
         }
 
         function getTeachersCollectionRef() {
-             if (!db) {
-                displayAppError("Firestore is not initialized.");
+             if (!db || !userId) {
+                displayAppError("Firestore is not initialized or user is not logged in.");
                 return null;
             }
-            return collection(db, 'artifacts', appId, 'public', 'data', 'teachers');
+            // *** NEW PRIVATE PATH: /artifacts/{appId}/users/{userId}/teachers ***
+            return collection(db, 'artifacts', appId, 'users', userId, 'teachers');
         }
 
         // --- Authentication Logic ---
@@ -487,11 +487,13 @@
                 };
 
                 const docRef = getTeacherDocRef(teacherId);
+                if (!docRef) return; // Exit if user is not logged in
+
                 await setDoc(docRef, teacherData);
 
                 showModalSuccess(`Record for ${teacherName} saved successfully!`);
                 
-                // ADDED: Auto-close the modal after a brief delay so the user sees the success flash
+                // Auto-close the modal after a brief delay so the user sees the success flash
                 setTimeout(() => {
                     window.closeRemarkModal();
                 }, 500); 
@@ -520,6 +522,7 @@
 
             try {
                 const docRef = getTeacherDocRef(teacherId);
+                if (!docRef) return; // Exit if user is not logged in
                 
                 // NOTE: Deletion is intentionally disabled here because 'deleteDoc' is not imported,
                 // and relying on partial deletes (like removing the teacher from the local array)
@@ -544,10 +547,12 @@
             if (unsubscribeTeachers) {
                 unsubscribeTeachers();
             }
+            // Check if user is logged in before subscribing (Path check handles the rest)
             if (!db || !userId) return;
 
             const collectionRef = getTeachersCollectionRef();
-            const q = query(collectionRef); // Simple query on the entire collection
+            // Since the collection path now contains the userId, this query naturally filters to the current user's data.
+            const q = query(collectionRef); 
             
             loadingEl.classList.remove('hidden');
             teacherListEl.innerHTML = '';
@@ -672,6 +677,14 @@
                 userId = null;
                 if (unsubscribeTeachers) unsubscribeTeachers();
                 
+                // Clear UI when logged out
+                teachersRoster = []; 
+                teacherListEl.innerHTML = '';
+                emptyStateEl.innerHTML = `<p class="font-semibold">Please sign in to continue.</p>`;
+                emptyStateEl.classList.remove('hidden');
+                document.getElementById('teacher-list-container').classList.add('hidden');
+
+
                 authInfoEl.innerHTML = `<p class="font-semibold">Please sign in to continue.</p>`;
                 mainContentEl.classList.add('hidden');
                 authContainerEl.classList.remove('hidden');
@@ -684,19 +697,21 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // --- MANDATORY CANVAS AUTHENTICATION START ---
+                // --- MANDATORY CANVAS AUTHENTICATION START (Robust) ---
                 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
                 const attemptSignIn = async () => {
+                    // Only attempt custom token sign-in. If this fails, the app remains logged out
+                    // and the user must use the email/password fields.
                     if (initialAuthToken) {
                         try {
                             await signInWithCustomToken(auth, initialAuthToken);
                         } catch (e) {
-                            console.error("Token Sign-in Failed, attempting Anonymous:", e);
-                            await signInAnonymously(auth);
+                            console.warn("Custom token sign-in failed. Please use email/password fields.", e);
+                            // Do nothing, let onAuthStateChanged handle the logged out state.
                         }
                     } else {
-                        await signInAnonymously(auth);
+                        console.log("No initial auth token provided. Awaiting user action.");
                     }
                 };
                 
